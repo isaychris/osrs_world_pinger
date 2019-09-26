@@ -5,13 +5,22 @@ import collections
 import requests
 import queue
 import re
-
+import platform
 
 class OSRSWorldPinger():
     def __init__(self):
         self.num_threads = 8
         self.ping_queue = queue.Queue()
-
+        
+        if platform.system() == "Linux":
+            self.cmd_prefix = "ping {} -c 1"
+            self.findstr = "time=([\d.]+) ms"
+        elif platform.system() == "Windows":
+            self.cmd_prefix = "ping {} -n 1"
+            self.findstr = "time=([\d.]+)ms"
+        else:
+            sys.exit("Platform not supported")
+        
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'}
 
@@ -25,10 +34,11 @@ class OSRSWorldPinger():
         while True:
             world = q.get()
             address = "oldschool{}.runescape.com".format(world)
-
-            command = "ping {} -n 1".format(address)
+            
+            command = self.cmd_prefix.format(address)
             output = subprocess.check_output(command, shell=True).decode('utf-8')
-            matches = re.findall("time=([\d.]+)ms", output)
+            matches = re.findall(self.findstr, output)
+            # print(' '.join(self.server_list))
             self.server_list[world]['ping'] = int(matches[0])
 
             q.task_done()
